@@ -53,9 +53,17 @@ initialBoard =
   ,((3,8),Ship)]
   where (Board b) = emptyBoard
 
+fire :: (Int,Int) -> Board -> Board
+fire ix (Board board) = Board $ board // [(ix,newVal)]
+  where currentVal = board ! ix
+        newVal = f currentVal
+        f Empty = Missed
+        f Ship = Hit
+        f Missed = Missed
+        f Hit = Hit
 
 someFunc :: IO ()
 someFunc = putStrLn (show initialBoard)
 
 m :: IO ()
-m = putStrLn (show initialBoard)
+m = putStrLn (show (fire (1,5) initialBoard))
