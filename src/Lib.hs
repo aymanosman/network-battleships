@@ -1,14 +1,17 @@
-module Lib (someFunc) where
+{-# LANGUAGE ScopedTypeVariables #-}
+module Lib (main) where
 
+import           Control.Monad
 import           Data.Array
 import           Data.List
+import           Safe
 
 data Cell = Empty | Ship | Missed | Hit
 
 instance Show Cell where
-  show Empty = "."
-  show Ship = "S"
-  show Missed = "O"
+  show Empty = "_"
+  show Ship = "_"
+  show Missed = "."
   show Hit = "X"
 
 newtype Board =
@@ -62,8 +65,20 @@ fire ix (Board board) = Board $ board // [(ix,newVal)]
         f Missed = Missed
         f Hit = Hit
 
-someFunc :: IO ()
-someFunc = putStrLn (show initialBoard)
+
+handleCommand :: Board -> IO Board
+handleCommand board =
+  do print board
+     putStrLn "Give us your point: "
+     mCoords :: Maybe (Int,Int) <- readMay <$> getLine
+     case mCoords of
+       Nothing ->
+         do putStrLn "Unrecognised command"
+            handleCommand board
+       Just coords -> handleCommand $ fire coords board
+
+main :: IO b
+main = forever $ handleCommand initialBoard
 
 m :: IO ()
-m = putStrLn (show (fire (1,5) initialBoard))
+m = print (fire (1,5) initialBoard)
