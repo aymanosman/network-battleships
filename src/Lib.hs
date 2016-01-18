@@ -3,12 +3,13 @@
 module Lib (main) where
 
 import           Control.Monad
-import           Control.Monad.IO.Class
+-- import           Control.Monad.IO.Class
 import           Data.Array
-import           Data.ByteString.Char8  (pack, unpack)
+import           Data.ByteString.Char8 (pack, unpack)
 import           Data.List
 import           Network.Simple.TCP
 import           Safe
+import           Text.Printf
 
 
 data Cell = Empty | Ship | Missed | Hit
@@ -77,21 +78,24 @@ fire ix (Board board) =
         f Missed = Missed
         f Hit = Hit
 
-handleCommand :: MonadIO m => Socket -> Board -> m Board
+handleCommand :: Socket -> Board -> IO Board
 handleCommand socket board =
   do send socket $ pack $ show board
      send socket "\nGive us your point: "
      message <- recv socket 1500
      let mCoords :: Maybe (Int,Int) = (unpack <$> message) >>= readMay
-     case mCoords of
-       Nothing ->
-         do send socket "Unrecognised command"
-            handleCommand socket board
-       Just coords -> handleCommand socket $ fire coords board
+     newBoard <- case mCoords of
+                       Nothing ->
+                         do send socket "Unrecognised command"
+                            return board
+                       Just coords -> return $ fire coords board
+     printf "Got move: %s\n%s\n=======\n" (show mCoords) (show newBoard)
+     handleCommand socket newBoard
 
 main :: IO ()
 main =
   forever $
   serve (Host "0.0.0.0") "8000" $
-  \(connectionSocket,_) ->
-    forever $ handleCommand connectionSocket initialBoard
+  \(connectionSocket,addr) ->
+    do printf "Connection from: %s\n" (show addr)
+       forever $ handleCommand connectionSocket initialBoard
