@@ -1,10 +1,15 @@
+{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Lib (main) where
 
 import           Control.Monad
+import           Control.Monad.IO.Class
 import           Data.Array
+import           Data.ByteString.Char8  (pack, unpack)
 import           Data.List
+import           Network.Simple.TCP
 import           Safe
+
 
 data Cell = Empty | Ship | Missed | Hit
 
@@ -24,7 +29,7 @@ showRow :: Board -> Int -> String
 showRow board y =
   concat $
   do x <- [1 .. 8]
-     let v = (unboard board) ! (x,y)
+     let v = unboard board ! (x,y)
      return (show v)
 
 instance Show Board where
@@ -56,29 +61,37 @@ initialBoard =
   ,((3,8),Ship)]
   where (Board b) = emptyBoard
 
+safeLookup :: Array (Int,Int) e -> (Int,Int) -> Maybe e
+safeLookup a (x,y) =
+  if (x > 0 && x <= 8) && (y > 0 && y <= 8)
+     then Just $ a ! (x,y)
+     else Nothing
+
 fire :: (Int,Int) -> Board -> Board
-fire ix (Board board) = Board $ board // [(ix,newVal)]
-  where currentVal = board ! ix
-        newVal = f currentVal
-        f Empty = Missed
+fire ix (Board board) =
+  case safeLookup board ix of
+    Nothing -> Board board
+    Just currentVal -> Board $ board // [(ix,f currentVal)]
+  where f Empty = Missed
         f Ship = Hit
         f Missed = Missed
         f Hit = Hit
 
-
-handleCommand :: Board -> IO Board
-handleCommand board =
-  do print board
-     putStrLn "Give us your point: "
-     mCoords :: Maybe (Int,Int) <- readMay <$> getLine
+handleCommand :: MonadIO m => Socket -> Board -> m Board
+handleCommand socket board =
+  do send socket $ pack $ show board
+     send socket "\nGive us your point: "
+     message <- recv socket 1500
+     let mCoords :: Maybe (Int,Int) = (unpack <$> message) >>= readMay
      case mCoords of
        Nothing ->
-         do putStrLn "Unrecognised command"
-            handleCommand board
-       Just coords -> handleCommand $ fire coords board
+         do send socket "Unrecognised command"
+            handleCommand socket board
+       Just coords -> handleCommand socket $ fire coords board
 
-main :: IO b
-main = forever $ handleCommand initialBoard
-
-m :: IO ()
-m = print (fire (1,5) initialBoard)
+main :: IO ()
+main =
+  forever $
+  serve (Host "0.0.0.0") "8000" $
+  \(connectionSocket,_) ->
+    forever $ handleCommand connectionSocket initialBoard
