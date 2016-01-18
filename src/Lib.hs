@@ -83,12 +83,16 @@ handleCommand socket addr board =
      send socket "\nGive us your point: "
      message <- recv socket 1500
      let mCoords :: Maybe (Int,Int) = (unpack <$> message) >>= readMay
-     newBoard <- case mCoords of
-                       Nothing ->
-                         do send socket "Unrecognised command"
-                            return board
-                       Just coords -> return $ fire coords board
-     printf "Got move from %s: %s\n%s\n=======\n" (show addr) (show mCoords) (show newBoard)
+     newBoard <-
+       case mCoords of
+         Nothing ->
+           do send socket "Unrecognised command"
+              return board
+         Just coords -> return $ fire coords board
+     printf "Got move from %s: %s\n%s\n=======\n"
+            (show addr)
+            (show mCoords)
+            (show newBoard)
      handleCommand socket addr newBoard
 
 main :: IO ()
