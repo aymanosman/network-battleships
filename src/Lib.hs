@@ -3,7 +3,6 @@
 module Lib (main) where
 
 import           Control.Monad
--- import           Control.Monad.IO.Class
 import           Data.Array
 import           Data.ByteString.Char8 (pack, unpack)
 import           Data.List
@@ -78,8 +77,8 @@ fire ix (Board board) =
         f Missed = Missed
         f Hit = Hit
 
-handleCommand :: Socket -> Board -> IO Board
-handleCommand socket board =
+handleCommand :: Socket -> SockAddr -> Board -> IO ()
+handleCommand socket addr board =
   do send socket $ pack $ show board
      send socket "\nGive us your point: "
      message <- recv socket 1500
@@ -89,8 +88,8 @@ handleCommand socket board =
                          do send socket "Unrecognised command"
                             return board
                        Just coords -> return $ fire coords board
-     printf "Got move: %s\n%s\n=======\n" (show mCoords) (show newBoard)
-     handleCommand socket newBoard
+     printf "Got move from %s: %s\n%s\n=======\n" (show addr) (show mCoords) (show newBoard)
+     handleCommand socket addr newBoard
 
 main :: IO ()
 main =
@@ -98,4 +97,4 @@ main =
   serve (Host "0.0.0.0") "8000" $
   \(connectionSocket,addr) ->
     do printf "Connection from: %s\n" (show addr)
-       forever $ handleCommand connectionSocket initialBoard
+       handleCommand connectionSocket addr initialBoard
