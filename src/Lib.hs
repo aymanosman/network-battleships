@@ -65,21 +65,14 @@ placeShip' p b =
       flip placeShip b
       $ zip [x..] (replicate n y)
 
-initC :: Board
-initC =
+initB :: Board
+initB =
   emptyBoard
    |> placeShip' (Down 1 (1,5))
    |> placeShip' (Across 4 (5,2))
    |> placeShip' (Across 2 (6,5))
    |> placeShip' (Down 3 (3,6))
 
-initB :: Board
-initB =
-  emptyBoard
-  |> placeShip [(1, 5)]
-  |> placeShip [(5,2) ,(6,2) ,(7,2) ,(8,2)]
-  |> placeShip [(6,5), (7,5)]
-  |> placeShip [(3,6), (3,7), (3,8)]
 
 safeLookup :: Array Point e -> Point -> Maybe e
 safeLookup a (x,y) =
@@ -87,27 +80,39 @@ safeLookup a (x,y) =
      then Just $ a ! (x,y)
      else Nothing
 
-fire :: Point -> Board -> Board
+updateCell :: Cell -> Point -> Board -> Board
+updateCell newCell ix (Board b) =
+  Board $ b // [(ix, newCell)]
+
+fire :: Point -> Board -> Maybe Board
 fire ix (Board board) =
-  case safeLookup board ix of
-    Nothing -> Board board
-    Just currentVal -> Board $ board // [(ix,f currentVal)]
+  safeLookup board ix
+  |> fmap (\cell -> updateCell (f cell) ix (Board board))
+  -- case safeLookup board ix of
+  --   Nothing -> Board board
+  --   Just currentVal -> Board $ board // [(ix,f currentVal)]
   where f Empty = Missed
         f Ship = Hit
         f Missed = Missed
         f Hit = Hit
 
-handleCommand :: MonadIO m => Socket -> Board -> m Board
+handleCommand :: Socket -> Board -> IO Board
 handleCommand socket board =
   do send socket $ pack $ show board
-     send socket "\nGive us your point: "
+     send socket "\nGive us your point, hint (1,1): "
      message <- recv socket 1500
      let mCoords :: Maybe Point = (unpack <$> message) >>= readMay
      case mCoords of
        Nothing ->
-         do send socket "Unrecognised command"
+         do send socket "Unrecognised command\n"
             handleCommand socket board
-       Just coords -> handleCommand socket $ fire coords board
+       Just coords ->
+         case fire coords board of
+           Nothing ->
+             do send socket "You missed the board ¬_¬\n"
+                handleCommand socket board
+           Just newBoard ->
+             handleCommand socket newBoard
 
 main :: IO ()
 main =
