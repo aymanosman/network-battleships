@@ -11,5 +11,5 @@ stack build
 stack exec battleship
 ```
 
-Players can connect with `telnet <yourip> 8000` and send battleship
+Players can connect with `telnet <your-ip> 8000` and send battleship
 coordinates like `(1,3)`.
