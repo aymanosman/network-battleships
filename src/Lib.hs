@@ -11,9 +11,14 @@ import           Data.ByteString.Char8  (pack, unpack)
 import           Data.List
 import           Network.Simple.TCP
 import           Safe
+import qualified Debug.Trace as D
+
+-- t = D.traceShowId
 
 (|>) :: a -> (a -> b) -> b
 x |> f = f x
+
+type Point = (Int, Int)
 
 data Cell = Empty | Ship | Missed | Hit deriving (Eq)
 
@@ -23,7 +28,7 @@ instance Show Cell where
   show Missed = "O"
   show Hit = "X"
 
-newtype Board = Board {unBoard :: Array (Int,Int) Cell}
+newtype Board = Board {unBoard :: Array Point Cell}
   deriving (Eq)
 
 showRow :: Board -> Int -> String
@@ -39,18 +44,32 @@ instance Show Board where
     do y <- [1 .. 8]
        return $ showRow board y
 
-lb, ub :: (Int, Int)
+lb, ub :: Point
 lb = (1,1)
 ub = (8,8)
 
 emptyBoard :: Board
-emptyBoard = Board $ listArray (lb, ub) (repeat Empty)
+emptyBoard =
+  Board $ listArray (lb, ub) (repeat Empty)
 
-placeShip :: [(Int, Int)] -> Board -> Board
+placeShip :: [Point] -> Board -> Board
 placeShip ps (Board b) =
-  Board $
-  b //
-  zip ps (repeat Ship)
+  Board $ b // zip ps (repeat Ship)
+
+data Placement
+  = Down Int Point
+  | Across Int Point
+
+placeShip' :: Placement -> Board -> Maybe Board
+placeShip' p b =
+  case p of
+    Down n qq ->
+      Just $ placeShip (D.traceShowId (pp n qq)) b
+
+    Across n q ->
+      Just $ placeShip (pp n q) b
+  where
+    pp n (x, y) = zip (replicate n x) [y..]
 
 initB :: Board
 initB =
@@ -76,13 +95,13 @@ initialBoard =
   ,((3,8),Ship)]
   where (Board b) = emptyBoard
 
-safeLookup :: Array (Int,Int) e -> (Int,Int) -> Maybe e
+safeLookup :: Array Point e -> Point -> Maybe e
 safeLookup a (x,y) =
   if (x > 0 && x <= 8) && (y > 0 && y <= 8)
      then Just $ a ! (x,y)
      else Nothing
 
-fire :: (Int,Int) -> Board -> Board
+fire :: Point -> Board -> Board
 fire ix (Board board) =
   case safeLookup board ix of
     Nothing -> Board board
@@ -97,7 +116,7 @@ handleCommand socket board =
   do send socket $ pack $ show board
      send socket "\nGive us your point: "
      message <- recv socket 1500
-     let mCoords :: Maybe (Int,Int) = (unpack <$> message) >>= readMay
+     let mCoords :: Maybe Point = (unpack <$> message) >>= readMay
      case mCoords of
        Nothing ->
          do send socket "Unrecognised command"
@@ -110,3 +129,8 @@ main =
   serve (Host "0.0.0.0") "8000" $
   \(connectionSocket,_) ->
     forever $ handleCommand connectionSocket initialBoard
+
+m :: IO ()
+m =
+  do let x = placeShip' (Down 4 (1,1)) emptyBoard
+     print x
