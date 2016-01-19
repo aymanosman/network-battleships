@@ -11,9 +11,6 @@ import           Data.ByteString.Char8  (pack, unpack)
 import           Data.List
 import           Network.Simple.TCP
 import           Safe
-import qualified Debug.Trace as D
-
--- t = D.traceShowId
 
 (|>) :: a -> (a -> b) -> b
 x |> f = f x
@@ -60,16 +57,25 @@ data Placement
   = Down Int Point
   | Across Int Point
 
-placeShip' :: Placement -> Board -> Maybe Board
+-- placeShip' :: Placement -> Board -> Maybe Board
+placeShip' :: Placement -> Board -> Board
 placeShip' p b =
   case p of
-    Down n qq ->
-      Just $ placeShip (D.traceShowId (pp n qq)) b
+    Down n (x, y) ->
+      flip placeShip b
+      $ zip (replicate n x) [y..]
 
-    Across n q ->
-      Just $ placeShip (pp n q) b
-  where
-    pp n (x, y) = zip (replicate n x) [y..]
+    Across n (x, y) ->
+      flip placeShip b
+      $ zip [x..] (replicate n y)
+
+initC :: Board
+initC =
+  emptyBoard
+   |> placeShip' (Down 1 (1,5))
+   |> placeShip' (Across 4 (5,2))
+   |> placeShip' (Across 2 (6,5))
+   |> placeShip' (Down 3 (3,6))
 
 initB :: Board
 initB =
@@ -78,22 +84,6 @@ initB =
   |> placeShip [(5,2) ,(6,2) ,(7,2) ,(8,2)]
   |> placeShip [(6,5), (7,5)]
   |> placeShip [(3,6), (3,7), (3,8)]
-
-initialBoard :: Board
-initialBoard =
-  Board $
-  b //
-  [((1,5),Ship)
-  ,((5,2),Ship)
-  ,((6,2),Ship)
-  ,((7,2),Ship)
-  ,((8,2),Ship)
-  ,((6,5),Ship)
-  ,((7,5),Ship)
-  ,((3,6),Ship)
-  ,((3,7),Ship)
-  ,((3,8),Ship)]
-  where (Board b) = emptyBoard
 
 safeLookup :: Array Point e -> Point -> Maybe e
 safeLookup a (x,y) =
@@ -128,9 +118,4 @@ main =
   forever $
   serve (Host "0.0.0.0") "8000" $
   \(connectionSocket,_) ->
-    forever $ handleCommand connectionSocket initialBoard
-
-m :: IO ()
-m =
-  do let x = placeShip' (Down 4 (1,1)) emptyBoard
-     print x
+    forever $ handleCommand connectionSocket initB
