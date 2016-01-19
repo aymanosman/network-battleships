@@ -82,7 +82,7 @@ fire ix (Board board) = Board $ safeReplace dropBomb ix board
 handleCommand
   :: Board Cell -> Socket -> SockAddr -> IO ()
 handleCommand board socket addr =
-  do send socket $ pack $ show board
+  do send socket . pack $ show board
      send socket "\nGive us your point: "
      message <- recv socket 1500
      let mCoords = (unpack <$> message) >>= readMay
@@ -100,8 +100,7 @@ handleCommand board socket addr =
 
 main :: IO ()
 main =
-  forever $
-  serve (Host "0.0.0.0") "8000" $
+  forever . serve (Host "0.0.0.0") "8000" $
   \(connectionSocket,addr) ->
     do printf "Connection from: %s\n" (show addr)
        handleCommand initialBoard connectionSocket addr
