@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Lib (main) where
@@ -10,7 +11,6 @@ import           Network.Simple.TCP
 import           Safe
 import           Text.Printf
 
-
 data Cell = Empty | Ship | Missed | Hit
 
 instance Show Cell where
@@ -19,33 +19,30 @@ instance Show Cell where
   show Missed = "."
   show Hit = "X"
 
-newtype Board =
-  Board {unboard :: Array (Int,Int) Cell}
+newtype Board a =
+  Board {unboard :: Array (Int,Int) a}
 
-size :: ((Int, Int), (Int, Int))
-size = ((1,1),(8,8))
-
-showRow :: Board -> Int -> String
-showRow board y =
+showRow :: Show a => Board a -> Int -> String
+showRow (Board board) y =
   concat $
-  do x <- [1 .. 8]
-     let v = unboard board ! (x,y)
-     return (show v)
+  do x <- range xRange
+     return $ show (board ! (x,y))
+  where (xRange,_) = bounds board
 
-instance Show Board where
+instance Show v => Show (Board v) where
   show board =
     intercalate "\n" $
-    do y <- [1 .. 8]
+    do y <- range yRange
        return $ showRow board y
+    where (_,yRange) = bounds (unboard board)
 
-emptyBoard :: Board
-emptyBoard = Board $ array size contents
+emptyBoard :: ((Int,Int),(Int,Int)) -> Board Cell
+emptyBoard size = Board (array size contents)
   where contents =
-          do x <- [1 .. 8]
-             y <- [1 .. 8]
-             return ((x,y),Empty)
+          do ix <- range size
+             return (ix,Empty)
 
-initialBoard :: Board
+initialBoard :: Board Cell
 initialBoard =
   Board $
   b //
@@ -59,30 +56,39 @@ initialBoard =
   ,((3,6),Ship)
   ,((3,7),Ship)
   ,((3,8),Ship)]
-  where (Board b) = emptyBoard
+  where (Board b) = emptyBoard ((1,1),(8,8))
 
-safeLookup :: Array (Int,Int) e -> (Int,Int) -> Maybe e
-safeLookup a (x,y) =
-  if (x > 0 && x <= 8) && (y > 0 && y <= 8)
-     then Just $ a ! (x,y)
+safeLookup :: Ix i
+           => i -> Array i e -> Maybe e
+safeLookup ix a =
+  if inRange (bounds a) ix
+     then Just $ a ! ix
      else Nothing
 
-fire :: (Int,Int) -> Board -> Board
-fire ix (Board board) =
-  case safeLookup board ix of
-    Nothing -> Board board
-    Just currentVal -> Board $ board // [(ix,f currentVal)]
-  where f Empty = Missed
-        f Ship = Hit
-        f Missed = Missed
-        f Hit = Hit
+safeReplace
+  :: Ix i
+  => (e -> e) -> i -> Array i e -> Array i e
+safeReplace f ix a =
+  case safeLookup ix a of
+    Nothing -> a
+    Just currentVal -> a // [(ix,f currentVal)]
 
-handleCommand :: Socket -> SockAddr -> Board -> IO ()
-handleCommand socket addr board =
+dropBomb :: Cell -> Cell
+dropBomb Empty = Missed
+dropBomb Ship = Hit
+dropBomb Missed = Missed
+dropBomb Hit = Hit
+
+fire :: (Int, Int) -> Board Cell -> Board Cell
+fire ix (Board board) = Board $ safeReplace dropBomb ix board
+
+handleCommand
+  :: Board Cell -> Socket -> SockAddr -> IO ()
+handleCommand board socket addr =
   do send socket $ pack $ show board
      send socket "\nGive us your point: "
      message <- recv socket 1500
-     let mCoords :: Maybe (Int,Int) = (unpack <$> message) >>= readMay
+     let mCoords = (unpack <$> message) >>= readMay
      newBoard <-
        case mCoords of
          Nothing ->
@@ -93,7 +99,7 @@ handleCommand socket addr board =
             (show addr)
             (show mCoords)
             (show newBoard)
-     handleCommand socket addr newBoard
+     handleCommand newBoard socket addr
 
 main :: IO ()
 main =
@@ -101,4 +107,4 @@ main =
   serve (Host "0.0.0.0") "8000" $
   \(connectionSocket,addr) ->
     do printf "Connection from: %s\n" (show addr)
-       handleCommand connectionSocket addr initialBoard
+       handleCommand initialBoard connectionSocket addr
