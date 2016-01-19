@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Lib (main) where
+module Lib
+       -- (main)
+       where
 
 import           Control.Monad
 import           Control.Monad.IO.Class
@@ -16,16 +18,16 @@ infixl 2 |>
 
 -- ((x |> f) |> g) |> h i
 
-data Cell = Empty | Ship | Missed | Hit
+data Cell = Empty | Ship | Missed | Hit deriving (Eq)
 
 instance Show Cell where
-  show Empty = "_"
-  show Ship = "_"
-  show Missed = "."
+  show Empty = "."
+  show Ship = "S"
+  show Missed = "O"
   show Hit = "X"
 
-newtype Board =
-  Board {unboard :: Array (Int,Int) Cell}
+newtype Board = Board {unboard :: Array (Int,Int) Cell}
+  deriving (Eq)
 
 showRow :: Board -> Int -> String
 showRow board y =
@@ -57,7 +59,9 @@ initB :: Board
 initB =
   emptyBoard
   |> placeShip [(1, 5)]
-  |> Board
+  |> placeShip [(5,2) ,(6,2) ,(7,2) ,(8,2)]
+  |> placeShip [(6,5), (7,5)]
+  |> placeShip [(3,6), (3,7), (3,8)]
 
 initialBoard :: Board
 initialBoard =
