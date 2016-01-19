@@ -84,17 +84,44 @@ updateCell :: Cell -> Point -> Board -> Board
 updateCell newCell ix (Board b) =
   Board $ b // [(ix, newCell)]
 
-fire :: Point -> Board -> Maybe Board
-fire ix (Board board) =
-  safeLookup board ix
-  |> fmap (\cell -> updateCell (f cell) ix (Board board))
-  -- case safeLookup board ix of
-  --   Nothing -> Board board
-  --   Just currentVal -> Board $ board // [(ix,f currentVal)]
-  where f Empty = Missed
-        f Ship = Hit
-        f Missed = Missed
-        f Hit = Hit
+fire :: Point -> Board -> Maybe (Event, Board)
+fire ix b =
+  maybe
+  Nothing
+  (\cell ->
+    case f cell of
+      Miss ->
+        Just (Miss
+             , updateCell Missed ix b)
+      Impact ->
+        Just (Impact
+             , updateCell Hit ix b)
+      Repeat ->
+        Just (Repeat
+             , b))
+  $ safeLookup (unBoard b) ix
+  where f Empty = Miss
+        f Ship = Impact
+        f Missed = Repeat
+        f Hit = Repeat
+
+data Command
+  = Fire Point
+
+data Event
+  = Impact
+  | Miss
+  | Repeat
+  deriving (Show)
+
+handle :: Command -> Board -> Either String (Event, Board)
+handle (Fire point) b =
+  case fire point b of
+    Nothing ->
+      Left "You missed the board ¬_¬\n"
+
+    Just x ->
+      Right x
 
 handleCommand :: Socket -> Board -> IO Board
 handleCommand socket board =
@@ -107,12 +134,13 @@ handleCommand socket board =
          do send socket "Unrecognised command\n"
             handleCommand socket board
        Just coords ->
-         case fire coords board of
-           Nothing ->
-             do send socket "You missed the board ¬_¬\n"
+         case handle (Fire coords) board of
+           Left err ->
+             do send socket $ pack err
                 handleCommand socket board
-           Just newBoard ->
-             handleCommand socket newBoard
+           Right (ev, b) ->
+             do send socket $ pack $ show ev ++ "\n"
+                handleCommand socket b
 
 main :: IO ()
 main =
