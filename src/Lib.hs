@@ -14,6 +14,8 @@ import           Safe
 x |> f = f x
 infixl 2 |>
 
+-- ((x |> f) |> g) |> h i
+
 data Cell = Empty | Ship | Missed | Hit
 
 instance Show Cell where
