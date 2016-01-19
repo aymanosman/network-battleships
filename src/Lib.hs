@@ -14,9 +14,6 @@ import           Safe
 
 (|>) :: a -> (a -> b) -> b
 x |> f = f x
-infixl 2 |>
-
--- ((x |> f) |> g) |> h i
 
 data Cell = Empty | Ship | Missed | Hit deriving (Eq)
 
@@ -26,14 +23,14 @@ instance Show Cell where
   show Missed = "O"
   show Hit = "X"
 
-newtype Board = Board {unboard :: Array (Int,Int) Cell}
+newtype Board = Board {unBoard :: Array (Int,Int) Cell}
   deriving (Eq)
 
 showRow :: Board -> Int -> String
-showRow board y =
+showRow (Board board) y =
   concat $
   do x <- [1 .. 8]
-     let v = unboard board ! (x,y)
+     let v = board ! (x,y)
      return (show v)
 
 instance Show Board where
