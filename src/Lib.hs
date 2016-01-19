@@ -5,7 +5,6 @@ module Lib
        where
 
 import           Control.Monad
-import           Control.Monad.IO.Class
 import           Data.Array
 import           Data.ByteString.Char8  (pack, unpack)
 import           Data.List
@@ -18,7 +17,12 @@ x |> f = f x
 
 type Point = (Int, Int)
 
-data Cell = Empty | Ship | Missed | Hit deriving (Eq)
+data Cell
+  = Empty
+  | Ship
+  | Missed
+  | Hit
+  deriving (Eq)
 
 instance Show Cell where
   show Empty = "."
@@ -26,11 +30,11 @@ instance Show Cell where
   show Missed = "O"
   show Hit = "X"
 
-newtype Board = Board {unBoard :: Array Point Cell}
+newtype Board = MkBoard {unBoard :: Array Point Cell}
   deriving (Eq)
 
 instance Show Board where
-  show (Board b) =
+  show (MkBoard b) =
     intercalate "\n"
     . map (concatMap show)
     . transpose
@@ -43,11 +47,11 @@ ub = (8,8)
 
 emptyBoard :: Board
 emptyBoard =
-  Board $ listArray (lb, ub) (repeat Empty)
+  MkBoard $ listArray (lb, ub) (repeat Empty)
 
 placeShip :: [Point] -> Board -> Board
-placeShip ps (Board b) =
-  Board $ b // zip ps (repeat Ship)
+placeShip ps (MkBoard b) =
+  MkBoard $ b // zip ps (repeat Ship)
 
 data Placement
   = Down Int Point
@@ -81,8 +85,8 @@ safeLookup a (x,y) =
      else Nothing
 
 updateCell :: Cell -> Point -> Board -> Board
-updateCell newCell ix (Board b) =
-  Board $ b // [(ix, newCell)]
+updateCell newCell ix (MkBoard b) =
+  MkBoard $ b // [(ix, newCell)]
 
 fire :: Point -> Board -> Maybe (Event, Board)
 fire ix b =
