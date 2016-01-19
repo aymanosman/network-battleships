@@ -20,21 +20,18 @@ instance Show Cell where
   show Hit = "X"
 
 newtype Board a =
-  Board {unboard :: Array (Int,Int) a}
-
-showRow :: Show a => Board a -> Int -> String
-showRow (Board board) y =
-  concat $
-  do x <- range xRange
-     return $ show (board ! (x,y))
-  where (xRange,_) = bounds board
+  Board (Array (Int,Int) a)
 
 instance Show v => Show (Board v) where
-  show board =
+  show (Board board) =
     intercalate "\n" $
     do y <- range yRange
-       return $ showRow board y
-    where (_,yRange) = bounds (unboard board)
+       return $ showRow y
+    where showRow y =
+            concat $
+            do x <- range xRange
+               return $ show (board ! (x,y))
+          (xRange,yRange) = bounds board
 
 emptyBoard :: ((Int,Int),(Int,Int)) -> Board Cell
 emptyBoard size = Board (array size contents)
