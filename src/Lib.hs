@@ -11,6 +11,7 @@ import           Data.ByteString.Char8  (pack, unpack)
 import           Data.List
 import           Network.Simple.TCP
 import           Safe
+import           Data.List.Split
 
 (|>) :: a -> (a -> b) -> b
 x |> f = f x
@@ -28,18 +29,13 @@ instance Show Cell where
 newtype Board = Board {unBoard :: Array Point Cell}
   deriving (Eq)
 
-showRow :: Board -> Int -> String
-showRow (Board board) y =
-  concat $
-  do x <- [1 .. 8]
-     let v = board ! (x,y)
-     return (show v)
-
 instance Show Board where
-  show board =
-    intercalate "\n" $
-    do y <- [1 .. 8]
-       return $ showRow board y
+  show (Board b) =
+    intercalate "\n"
+    . map (concatMap show)
+    . transpose
+    . chunksOf 8
+    $ elems b
 
 lb, ub :: Point
 lb = (1,1)
