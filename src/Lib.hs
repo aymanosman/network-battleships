@@ -10,6 +10,9 @@ import           Data.List
 import           Network.Simple.TCP
 import           Safe
 
+(|>) :: a -> (a -> b) -> b
+x |> f = f x
+infixl 2 |>
 
 data Cell = Empty | Ship | Missed | Hit
 
@@ -21,9 +24,6 @@ instance Show Cell where
 
 newtype Board =
   Board {unboard :: Array (Int,Int) Cell}
-
-size :: ((Int, Int), (Int, Int))
-size = ((1,1),(8,8))
 
 showRow :: Board -> Int -> String
 showRow board y =
@@ -38,12 +38,24 @@ instance Show Board where
     do y <- [1 .. 8]
        return $ showRow board y
 
+lb, ub :: (Int, Int)
+lb = (1,1)
+ub = (8,8)
+
 emptyBoard :: Board
-emptyBoard = Board $ array size contents
-  where contents =
-          do x <- [1 .. 8]
-             y <- [1 .. 8]
-             return ((x,y),Empty)
+emptyBoard = Board $ listArray (lb, ub) (repeat Empty)
+
+placeShip :: [(Int, Int)] -> Board -> Board
+placeShip ps (Board b) =
+  Board $
+  b //
+  zip ps (repeat Ship)
+
+initB :: Board
+initB =
+  emptyBoard
+  |> placeShip [(1, 5)]
+  |> Board
 
 initialBoard :: Board
 initialBoard =
