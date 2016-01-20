@@ -80,7 +80,7 @@ initB =
 
 safeLookup :: Array Point e -> Point -> Maybe e
 safeLookup a (x,y) =
-  if (x > 0 && x <= 8) && (y > 0 && y <= 8)
+  if (x > 0 && x <= 8) && (y > 0 && y <= 8) -- inRange (bounds a) (x, y)
      then Just $ a ! (x,y)
      else Nothing
 
