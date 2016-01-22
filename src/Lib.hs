@@ -6,11 +6,11 @@ module Lib
 
 import           Control.Monad
 import           Data.Array
-import           Data.ByteString.Char8  (pack, unpack)
+import           Data.ByteString.Char8 (pack, unpack)
 import           Data.List
-import           Network.Simple.TCP
-import           Safe
 import           Data.List.Split
+import           Network.Simple.TCP
+import           Safe                  (readMay)
 
 (|>) :: a -> (a -> b) -> b
 x |> f = f x
@@ -80,7 +80,7 @@ initB =
 
 safeLookup :: Array Point e -> Point -> Maybe e
 safeLookup a (x,y) =
-  if (x > 0 && x <= 8) && (y > 0 && y <= 8) -- inRange (bounds a) (x, y)
+  if inRange (bounds a) (x, y)
      then Just $ a ! (x,y)
      else Nothing
 
