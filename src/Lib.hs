@@ -93,7 +93,7 @@ fire ix b =
   maybe
   Nothing
   (\cell ->
-    case f cell of
+    case dropBomb cell of
       Miss ->
         Just (Miss
              , updateCell Missed ix b)
@@ -104,10 +104,11 @@ fire ix b =
         Just (Repeat
              , b))
   $ safeLookup (unBoard b) ix
-  where f Empty = Miss
-        f Ship = Impact
-        f Missed = Repeat
-        f Hit = Repeat
+
+dropBomb Empty = Miss
+dropBomb Ship = Impact
+dropBomb Missed = Repeat
+dropBomb Hit = Repeat
 
 data Command
   = Fire Point
