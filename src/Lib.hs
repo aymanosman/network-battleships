@@ -105,6 +105,7 @@ fire ix b =
              , b))
   $ safeLookup (unBoard b) ix
 
+dropBomb :: Cell -> Event
 dropBomb Empty = Miss
 dropBomb Ship = Impact
 dropBomb Missed = Repeat
